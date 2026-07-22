@@ -1,20 +1,16 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-
-import os
-import glob
 import joblib
+import plotly.graph_objects as go
 
 from scipy.fft import fft
 from scipy.stats import kurtosis, skew
 
-import plotly.graph_objects as go
 
-
-# ==========================
-# CONFIG
-# ==========================
+# =========================
+# PAGE CONFIG
+# =========================
 
 st.set_page_config(
     page_title="CNC Predictive Maintenance AI",
@@ -23,33 +19,32 @@ st.set_page_config(
 )
 
 
-ROOT_PATH = "archive"
+# =========================
+# CONFIG
+# =========================
 
 FAILURE_WEAR = 220
 
 
-
-# ==========================
+# =========================
 # STYLE
-# ==========================
+# =========================
 
 st.markdown("""
 <style>
 
 .stApp {
-    background:#0F172A;
+    background-color:#0f172a;
 }
 
 h1,h2,h3 {
     color:white;
 }
 
-[data-testid="metric-container"] {
-
-background:#1E293B;
-padding:15px;
-border-radius:15px;
-
+[data-testid="metric-container"]{
+    background:#1e293b;
+    padding:15px;
+    border-radius:15px;
 }
 
 </style>
@@ -58,20 +53,16 @@ border-radius:15px;
 
 
 
-# ==========================
+# =========================
 # FEATURE EXTRACTION
-# ==========================
+# เหมือน Notebook
+# =========================
 
 def extract(x):
 
-    x=np.array(x,dtype=float)
+    x = np.array(x, dtype=float)
 
-
-    if len(x)>2000:
-        x=x[:2000]
-
-
-    f=np.abs(fft(x))[:len(x)//2]
+    f = np.abs(fft(x))[:len(x)//2]
 
 
     return [
@@ -102,9 +93,9 @@ def extract(x):
 
 
 
-# ==========================
+# =========================
 # LOAD MODEL
-# ==========================
+# =========================
 
 @st.cache_resource
 def load_model():
@@ -125,254 +116,254 @@ model, scaler = load_model()
 
 
 
-# ==========================
-# LOAD LAST DATA
-# ==========================
-
-@st.cache_data
-def load_latest():
-
-    X=[]
-
-
-    cases=[1,4,6]
-
-
-    for case in cases:
-
-
-        folder=os.path.join(
-
-            ROOT_PATH,
-            f"c{case}",
-            f"c{case}"
-
-        )
-
-
-        files=sorted(
-
-            glob.glob(
-                os.path.join(
-                    folder,
-                    "*.csv"
-                )
-            )
-
-        )
-
-
-        if len(files)==0:
-            continue
-
-
-        # เอาไฟล์ล่าสุด
-
-        file=files[-1]
-
-
-        df=pd.read_csv(
-            file,
-            header=None
-        )
-
-
-        feature=[]
-
-
-        for col in range(df.shape[1]):
-
-            feature.extend(
-
-                extract(
-                    df.iloc[:,col]
-                )
-
-            )
-
-
-        X.append(feature)
-
-
-
-    return np.array(X)
-
-
-
-X_new=load_latest()
-
-
-
-X_scaled=scaler.transform(
-    X_new
-)
-
-
-
-wear=model.predict(
-    X_scaled
-)[0]
-
-
-
-# ==========================
-# CALCULATE HEALTH
-# ==========================
-
-health=max(
-
-    0,
-
-    100*(1-wear/FAILURE_WEAR)
-
-)
-
-
-
-remaining=max(
-
-    0,
-
-    FAILURE_WEAR-wear
-
-)
-
-
-
-days=remaining/10
-
-
-
-if days < 3:
-
-    status="🔴 CRITICAL"
-
-
-elif days < 14:
-
-    status="🟡 WARNING"
-
-
-else:
-
-    status="🟢 NORMAL"
-
-
-
-
-# ==========================
-# DASHBOARD
-# ==========================
-
+# =========================
+# UPLOAD DATA
+# =========================
 
 st.title(
     "⚙️ CNC Predictive Maintenance AI"
 )
 
-
-st.caption(
-    "AI Tool Wear Prediction using FFT Feature Extraction + Random Forest"
-)
-
-
-
-c1,c2,c3,c4=st.columns(4)
-
-
-c1.metric(
-    "Current Wear",
-    f"{wear:.2f} μm"
-)
-
-
-c2.metric(
-    "Tool Health",
-    f"{health:.1f}%"
-)
-
-
-c3.metric(
-    "Remaining Life",
-    f"{days:.1f} Days"
-)
-
-
-c4.metric(
-    "Status",
-    status
-)
-
-
-
-st.divider()
-
-
-
-# Gauge
-
-fig=go.Figure(
-
-go.Indicator(
-
-mode="gauge+number",
-
-value=health,
-
-title={
-"text":"Tool Health"
-},
-
-gauge={
-
-"axis":{
-"range":[0,100]
-}
-
-}
-
-)
-
-)
-
-
-fig.update_layout(
-height=350
-)
-
-
-st.plotly_chart(
-fig,
-use_container_width=True
-)
-
-
-
-# REPORT
-
-
-st.subheader(
-"🧠 AI Recommendation"
-)
-
-
-st.info(
-
-f"""
-Current tool wear:
-{wear:.2f} μm
-
-
-Wear percentage:
-{wear/FAILURE_WEAR*100:.1f}%
-
-
-Estimated remaining life:
-{days:.1f} days
-
-
-Condition:
-{status}
-
+st.write(
 """
-
+AI system for CNC tool wear prediction using
+FFT feature extraction and Random Forest regression.
+"""
 )
+
+
+uploaded_file = st.file_uploader(
+    "Upload CNC sensor CSV file",
+    type=["csv"]
+)
+
+
+
+if uploaded_file:
+
+
+    df = pd.read_csv(
+        uploaded_file,
+        header=None
+    )
+
+
+    st.subheader(
+        "Sensor Data Preview"
+    )
+
+
+    st.dataframe(
+        df.head()
+    )
+
+
+    # ----------------------
+    # FEATURE GENERATION
+    # ----------------------
+
+    features=[]
+
+
+    for col in range(df.shape[1]):
+
+        signal=df.iloc[:,col].values
+
+        features.extend(
+            extract(signal)
+        )
+
+
+    X_new=np.array(
+        [features]
+    )
+
+
+    # DEBUG
+
+    st.write(
+        "Generated Features:",
+        X_new.shape[1]
+    )
+
+    st.write(
+        "Expected Features:",
+        scaler.n_features_in_
+    )
+
+
+    # ----------------------
+    # CHECK FEATURE SIZE
+    # ----------------------
+
+    if X_new.shape[1] != scaler.n_features_in_:
+
+
+        st.error(
+        f"""
+        Feature mismatch!
+
+        Model expects:
+        {scaler.n_features_in_}
+
+        But uploaded data generated:
+        {X_new.shape[1]}
+
+        Please upload the same sensor format used during training.
+        """
+        )
+
+        st.stop()
+
+
+
+    # ----------------------
+    # PREDICT
+    # ----------------------
+
+    X_scaled=scaler.transform(
+        X_new
+    )
+
+
+    wear=model.predict(
+        X_scaled
+    )[0]
+
+
+
+    # ----------------------
+    # HEALTH
+    # ----------------------
+
+    health=max(
+        0,
+        100*(1-wear/FAILURE_WEAR)
+    )
+
+
+    remaining=max(
+        0,
+        FAILURE_WEAR-wear
+    )
+
+
+    days=remaining/10
+
+
+
+    if days < 3:
+
+        status="🔴 CRITICAL"
+
+    elif days <14:
+
+        status="🟡 WARNING"
+
+    else:
+
+        status="🟢 NORMAL"
+
+
+
+    # ======================
+    # DASHBOARD
+    # ======================
+
+
+    st.divider()
+
+
+    c1,c2,c3,c4=st.columns(4)
+
+
+    c1.metric(
+        "Current Wear",
+        f"{wear:.2f} μm"
+    )
+
+
+    c2.metric(
+        "Tool Health",
+        f"{health:.1f}%"
+    )
+
+
+    c3.metric(
+        "Remaining Life",
+        f"{days:.1f} Days"
+    )
+
+
+    c4.metric(
+        "Status",
+        status
+    )
+
+
+
+    st.divider()
+
+
+
+    fig=go.Figure(
+        go.Indicator(
+
+            mode="gauge+number",
+
+            value=health,
+
+            title={
+                "text":"Tool Health"
+            },
+
+            gauge={
+                "axis":{
+                    "range":[0,100]
+                }
+            }
+
+        )
+    )
+
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True
+    )
+
+
+
+    st.subheader(
+        "AI Recommendation"
+    )
+
+
+    st.info(
+
+    f"""
+    Current tool wear:
+    {wear:.2f} μm
+
+
+    Wear level:
+    {(wear/FAILURE_WEAR)*100:.1f}%
+
+
+    Estimated remaining life:
+    {days:.1f} days
+
+
+    Condition:
+    {status}
+
+    """
+
+    )
+
+
+else:
+
+    st.warning(
+        "Please upload CNC sensor CSV file."
+    )
